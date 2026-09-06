@@ -1,0 +1,12 @@
+[package]
+name = "web_calculator"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+# Tells Rust to compile this as a dynamic system library for WebAssembly targeting
+crate-type = ["cdylib"]
+
+[dependencies]
+# Binds the native Rust modules safely to your JavaScript engine
+wasm-bindgen = "0.2"
