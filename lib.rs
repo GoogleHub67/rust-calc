@@ -279,3 +279,44 @@ fn evaluate_basic_arithmetic(expr: &str) -> String {
     }
     format!("{}", clean) 
 }
+
+use wasm_bindgen::prelude::*;
+use web_sys::{window, Document, HtmlInputElement};
+
+// Helper function to get the input display window cleanly
+fn get_display_input(doc: &Document) -> Option<HtmlInputElement> {
+    doc.get_element_by_id("display")?
+        .dyn_into::<HtmlInputElement>().ok()
+}
+
+// Inside your button loop in render_keyboard_grid:
+// for btn in layouts { ...
+let doc_clone = doc.clone();
+let action_str = btn.action.to_string();
+let tab_ctx = tab_context.to_string();
+
+let click_closure = Closure::<dyn FnMut()>::new(move || {
+    let doc = &doc_clone;
+    if let Some(display) = get_display_input(doc) {
+        let current_value = display.value();
+        
+        match action_str.as_str() {
+            "clear" => display.set_value(""),
+            "backspace" => {
+                if !current_value.is_empty() {
+                    display.set_value(&current_value[..current_value.len() - 1]);
+                }
+            }
+            "eval" => {
+                // Calls your existing mathematical engine right here!
+                let result = solve_math(&current_value, &tab_ctx);
+                display.set_value(&result);
+            }
+            // Standard symbol or digit button append case
+            _ => display.set_value(&format!("{}{}", current_value, action_str)),
+        }
+    }
+});
+
+button_element.add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+click_closure.forget(); // Safely pin click listener allocation to global Wasm context heap
