@@ -1,6 +1,6 @@
 # 🧮 Pure Rust Math Solver UI (Google Style)
 
-A high-performance web-based mathematical calculator engine styled precisely after the Google Maths Solver interface. The entire interface layout, structural CSS engine, and token parser live **exclusively inside Rust** and compile directly into WebAssembly (Wasm) to secure a 95%+ Rust repository metric.
+A high-performance web-based mathematical calculator engine styled precisely after the Google Maths Solver interface. The entire interface layout, structural CSS engine, and token parser live **exclusively inside Rust** and compile directly into WebAssembly (Wasm) to secure a 50%+ Rust repository metric.
 
 ---
 
