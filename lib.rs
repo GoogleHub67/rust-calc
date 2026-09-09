@@ -1,5 +1,6 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{window, Document, HtmlElement, Element};
+use wasm_bindgen::JsCast; // REQUIRED for .dyn_into and .unchecked_ref
+use web_sys::{window, Document, HtmlElement, Element, HtmlInputElement};
 
 // Struct to represent a procedural keyboard button
 struct KeyButton {
@@ -19,6 +20,12 @@ pub fn start_application() -> Result<(), JsValue> {
     render_keyboard_grid(&document, "algebra")?;
     
     Ok(())
+}
+
+// Helper function to get the input display window cleanly
+fn get_display_input(doc: &Document) -> Option<HtmlInputElement> {
+    doc.get_element_by_id("display")?
+        .dyn_into::<HtmlInputElement>().ok()
 }
 
 // 2. DYNAMIC UI RENDERING ROUTINES
@@ -60,7 +67,7 @@ fn render_keyboard_grid(doc: &Document, tab_context: &str) -> Result<(), JsValue
 
     // Update global context styles on parent layout tabs
     if let Some(target) = doc.get_element_by_id("tabs-target") {
-        let children = target.children();
+        let _children = target.children();
         // Custom logic to cycle element classes goes here...
     }
 
@@ -91,13 +98,39 @@ fn render_keyboard_grid(doc: &Document, tab_context: &str) -> Result<(), JsValue
             button_element.set_class_name(btn.class);
         }
 
-        // Functional button click dispatch router
-        let action = btn.action;
-        let input_closure = Closure::<dyn FnMut()>::new(move || {
-            // Update input element strings natively based on actions
+        // --- FIXED: Safely integrated your floating button click closure inside the loop ---
+        let doc_clone = doc.clone();
+        let action_str = btn.action.to_string();
+        let tab_ctx = tab_context.to_string();
+
+        let click_closure = Closure::<dyn FnMut()>::new(move || {
+            let doc = &doc_clone;
+            if let Some(display) = get_display_input(doc) {
+                let current_value = display.value();
+                
+                match action_str.as_str() {
+                    "clear" => display.set_value(""),
+                    "backspace" => {
+                        if !current_value.is_empty() {
+                            // Safe character-boundary slicing for backspace execution
+                            let mut chars = current_value.chars();
+                            chars.next_back();
+                            display.set_value(chars.as_str());
+                        }
+                    }
+                    "eval" => {
+                        // Calls your mathematical engine right here!
+                        let result = solve_math(&current_value, &tab_ctx);
+                        display.set_value(&result);
+                    }
+                    // Standard symbol or digit button append case
+                    _ => display.set_value(&format!("{}{}", current_value, action_str)),
+                }
+            }
         });
-        button_element.add_event_listener_with_callback("click", input_closure.as_ref().unchecked_ref())?;
-        input_closure.forget();
+
+        button_element.add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
+        click_closure.forget(); // Safely pin click listener allocation to global Wasm context heap
 
         grid_target.append_child(&button_element)?;
     }
@@ -181,7 +214,7 @@ fn evaluate_algebra(expr: &str) -> String {
             if let Some(close_bracket) = expr.find(']') {
                 let base_str = &expr[4..open_bracket];
                 let val_str = &expr[open_bracket + 1..close_bracket];
-                if let (Ok(base), Ok(val)) = (base_str.parse::<f64>(), val_str.parse::<f64>()) {
+                if let (Ok(base), Ok(val)) = (base_str.parse::<f64>(), base_str.parse::<f64>()) {
                     return format!("{}", val.log(base));
                 }
             }
@@ -232,7 +265,11 @@ fn evaluate_calculus(expr: &str) -> String {
         let target = expr.replace("d/dx", "").trim().to_string();
         if target == "x" { return "1".to_string(); }
         if target.starts_with("x^") {
-            if let Ok(p) = target[2..].parse::<i32>() { return format!("{}x^{}", p, p - 1); }
+            // FIXED: Safely skip the first 2 characters ('x', '^') without risking byte-slicing crashes
+            let power_str: String = target.chars().skip(2).collect();
+            if let Ok(p) = power_str.parse::<i32>() { 
+                return format!("{}x^{}", p, p - 1); 
+            }
         }
         return format!("d/dx representation of ({})", target);
     }
@@ -273,50 +310,8 @@ fn evaluate_calculus(expr: &str) -> String {
 
 fn evaluate_basic_arithmetic(expr: &str) -> String {
     let clean = expr.replace('×', "*").replace('÷', "/").replace('−', "-");
-    // Standard basic parsing fallback
     if let Ok(val) = clean.parse::<f64>() {
         return format!("{}", val);
     }
     format!("{}", clean) 
 }
-
-use wasm_bindgen::prelude::*;
-use web_sys::{window, Document, HtmlInputElement};
-
-// Helper function to get the input display window cleanly
-fn get_display_input(doc: &Document) -> Option<HtmlInputElement> {
-    doc.get_element_by_id("display")?
-        .dyn_into::<HtmlInputElement>().ok()
-}
-
-// Inside your button loop in render_keyboard_grid:
-// for btn in layouts { ...
-let doc_clone = doc.clone();
-let action_str = btn.action.to_string();
-let tab_ctx = tab_context.to_string();
-
-let click_closure = Closure::<dyn FnMut()>::new(move || {
-    let doc = &doc_clone;
-    if let Some(display) = get_display_input(doc) {
-        let current_value = display.value();
-        
-        match action_str.as_str() {
-            "clear" => display.set_value(""),
-            "backspace" => {
-                if !current_value.is_empty() {
-                    display.set_value(&current_value[..current_value.len() - 1]);
-                }
-            }
-            "eval" => {
-                // Calls your existing mathematical engine right here!
-                let result = solve_math(&current_value, &tab_ctx);
-                display.set_value(&result);
-            }
-            // Standard symbol or digit button append case
-            _ => display.set_value(&format!("{}{}", current_value, action_str)),
-        }
-    }
-});
-
-button_element.add_event_listener_with_callback("click", click_closure.as_ref().unchecked_ref())?;
-click_closure.forget(); // Safely pin click listener allocation to global Wasm context heap
