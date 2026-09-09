@@ -4,7 +4,7 @@ version = "1.0.0"
 edition = "2021"
 
 [lib]
-path = "lib.rs"      # Tells Cargo that lib.rs is in the root directory
+path = "lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
@@ -16,6 +16,7 @@ features = [
     "Window",
     "Document",
     "HtmlElement",
-    "Element"
-    "EventTarget"
+    "Element",
+    "Node",          # Required for append_child and UI assembly
+    "EventTarget"   # Required for reading button clicks natively
 ]
