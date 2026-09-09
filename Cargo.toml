@@ -1,6 +1,6 @@
 [package]
-name = "web_calculator"
-version = "0.1.0"
+name = "rust-calc"
+version = "1.0.0"
 edition = "2021"
 
 [lib]
@@ -17,4 +17,5 @@ features = [
     "Document",
     "HtmlElement",
     "Element"
+    "EventTarget"
 ]
